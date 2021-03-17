@@ -45,6 +45,11 @@ type IdemixNewOpts struct {
 	NewBaseOpts
 }
 
+// DacNewOpts contains the options to instantiate a new Dac-based MSP
+type DacNewOpts struct {
+	NewBaseOpts
+}
+
 // New create a new MSP instance depending on the passed Opts
 func New(opts NewOpts, cryptoProvider bccsp.BCCSP) (MSP, error) {
 	switch opts.(type) {
@@ -71,6 +76,17 @@ func New(opts NewOpts, cryptoProvider bccsp.BCCSP) (MSP, error) {
 			return newIdemixMsp(MSPv1_1)
 		default:
 			return nil, errors.Errorf("Invalid *IdemixNewOpts. Version not recognized [%v]", opts.GetVersion())
+		}
+	case *DacNewOpts:
+		switch opts.GetVersion() {
+		case MSPv1_4_3:
+			fallthrough
+		case MSPv1_3:
+			return newDacMsp(MSPv1_3)
+		case MSPv1_1:
+			return newDacMsp(MSPv1_1)
+		default:
+			return nil, errors.Errorf("Invalid *DacNewOpts. Version not recognized [%v]", opts.GetVersion())
 		}
 	default:
 		return nil, errors.Errorf("Invalid msp.NewOpts instance. It must be either *BCCSPNewOpts or *IdemixNewOpts. It was [%v]", opts)

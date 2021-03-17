@@ -168,6 +168,8 @@ func loadLocalMSP(bccsp bccsp.BCCSP) msp.MSP {
 		}
 	case msp.ProviderTypeToString(msp.IDEMIX):
 		// Do nothing
+	case msp.ProviderTypeToString(msp.DAC):
+		// Do nothing
 	default:
 		panic("msp type " + mspType + " unknown")
 	}
