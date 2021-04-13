@@ -8,6 +8,7 @@ package msp
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 	"time"
@@ -33,12 +34,7 @@ type dacmsp struct {
 func newDacMsp(version MSPVersion) (MSP, error) {
 	mspLogger.Debugf("Creating Dac-based MSP instance")
 
-	/*csp, err := dacbccsp.New(sw.NewDummyKeyStore())
-	if err != nil {
-		panic(fmt.Sprintf("unexpected condition, error received [%s]", err))
-	}*/
-
-	msp := dacmsp{}
+	msp := dacmsp{name: "DacMSP"}
 	msp.version = version
 	return &msp, nil
 }
@@ -54,28 +50,32 @@ func (msp *dacmsp) Setup(conf1 *m.MSPConfig) error {
 		return errors.Errorf("setup error: config is not of type DAC")
 	}
 
-	var conf m.IdemixMSPConfig
-	err := proto.Unmarshal(conf1.Config, &conf)
+	dacConfig, err := CreateDacConfigFromBytes(conf1.Config)
+
 	if err != nil {
 		return errors.Wrap(err, "failed unmarshalling dac msp config")
 	}
 
-	msp.name = conf.Name
-	mspLogger.Debugf("Setting up Dac MSP instance %s", msp.name)
-
 	// Import Issuer Public Key
-	IssuerPublicKey, err := dac.PointFromBytes(conf.Ipk)
+	IssuerPublicKey, err := dacConfig.RootPk()
 	if err != nil {
 		return errors.WithMessage(err, "Invalid issuer public key")
 	}
 	msp.ipk = IssuerPublicKey
 
-	// Import revocation public key
-	RevocationPublicKey, err := dac.PointFromBytes(conf.RevocationPk)
+	// Import Ys
+	Ys, err := dacConfig.Ys()
 	if err != nil {
-		return errors.WithMessage(err, "Invalid issuer public key")
+		return errors.WithMessage(err, "Invalid Ys")
 	}
-	msp.revocationPK = RevocationPublicKey
+	msp.Ys = Ys
+
+	// Import H
+	H, err := dacConfig.H()
+	if err != nil {
+		return errors.WithMessage(err, "Invalid H")
+	}
+	msp.H = H.(*FP256BN.ECP2)
 
 	// Default signer not supported
 	return nil
@@ -118,7 +118,7 @@ func (msp *dacmsp) DeserializeIdentity(serializedID []byte) (Identity, error) {
 
 func (msp *dacmsp) deserializeIdentityInternal(serializedID []byte) (Identity, error) {
 	mspLogger.Debug("dacmsp: deserializing identity")
-	serialized := new(SerializedDacIdentity)
+	serialized := new(m.SerializedIdemixIdentity)
 	err := proto.Unmarshal(serializedID, serialized)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not deserialize a SerializedDacIdentity")
@@ -411,8 +411,10 @@ func (id *dacidentity) Verify(msg []byte, sigBytes []byte) error {
 		mspIdentityLogger.Debugf("Verify Dac sig: sig = %s", hex.Dump(sigBytes))
 	}
 	sig := dac.NymSignatureFromBytes(sigBytes)
-
-	err := sig.VerifyNym(id.msp.H, id.NymPublicKey, msg)
+	h := sha256.New()
+	h.Write(msg)
+	digest := h.Sum(nil)
+	err := sig.VerifyNym(id.msp.H, id.NymPublicKey, digest)
 	return err
 }
 

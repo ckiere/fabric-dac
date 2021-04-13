@@ -67,6 +67,15 @@ func (bh *MSPConfigHandler) ProposeMSP(mspConfig *mspprotos.MSPConfig) (msp.MSP,
 		if err != nil {
 			return nil, errors.WithMessage(err, "creating the MSP manager failed")
 		}
+	case int32(msp.DAC):
+		// create the idemix msp instance
+		theMsp, err = msp.New(
+			&msp.DacNewOpts{NewBaseOpts: msp.NewBaseOpts{Version: bh.version}},
+			bh.bccsp,
+		)
+		if err != nil {
+			return nil, errors.WithMessage(err, "creating the MSP manager failed")
+		}
 	default:
 		return nil, errors.New(fmt.Sprintf("Setup error: unsupported msp type %d", mspConfig.Type))
 	}

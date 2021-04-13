@@ -161,6 +161,8 @@ func GetLocalMspConfigWithType(dir string, bccspConfig *factory.FactoryOpts, ID,
 		return GetLocalMspConfig(dir, bccspConfig, ID)
 	case ProviderTypeToString(IDEMIX):
 		return GetIdemixMspConfig(dir, ID)
+	case ProviderTypeToString(DAC):
+		return GetDacMspConfig(dir, ID)
 	default:
 		return nil, errors.Errorf("unknown MSP type '%s'", mspType)
 	}
@@ -199,6 +201,8 @@ func GetVerifyingMspConfig(dir, ID, mspType string) (*msp.MSPConfig, error) {
 		return getMspConfig(dir, ID, nil)
 	case ProviderTypeToString(IDEMIX):
 		return GetIdemixMspConfig(dir, ID)
+	case ProviderTypeToString(DAC):
+		return GetDacMspConfig(dir, ID)
 	default:
 		return nil, errors.Errorf("unknown MSP type '%s'", mspType)
 	}
@@ -422,4 +426,19 @@ func GetIdemixMspConfig(dir string, ID string) (*msp.MSPConfig, error) {
 	}
 
 	return &msp.MSPConfig{Config: confBytes, Type: int32(IDEMIX)}, nil
+}
+
+const (
+	DacConfigDirMsp   = "msp"
+	DacConfigFile     = "DacConfig.json"
+)
+
+// GetDacMspConfig returns the configuration for the Dac MSP
+func GetDacMspConfig(dir string, ID string) (*msp.MSPConfig, error) {
+	confBytes, err := readFile(filepath.Join(dir, DacConfigDirMsp, DacConfigFile))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read config file")
+	}
+
+	return &msp.MSPConfig{Config: confBytes, Type: int32(DAC)}, nil
 }
